@@ -37,8 +37,8 @@ pub mod wininet {
     use std::ptr::null;
     use winapi::shared::minwindef::DWORD;
     use winapi::um::wininet::InternetReadFile;
-    use winapi::um::wininet::*;
     use winapi::um::wininet::HTTP_QUERY_STATUS_CODE;
+    use winapi::um::wininet::*;
 
     #[derive(Debug)]
     pub struct Internet(HINTERNET);
@@ -195,6 +195,14 @@ pub mod wininet {
             Bytes::new(&self)
         }
 
+        pub fn body(&self) -> Vec<u8> {
+            self.as_bytes().collect()
+        }
+
+        pub fn body_as_string(self) -> Result<String, std::string::FromUtf8Error> {
+            String::from_utf8(self.body())
+        }
+
         pub fn status(&self) -> DWORD {
             let mut status_code: DWORD = 0;
             let mut len: DWORD = 4;
@@ -205,7 +213,7 @@ pub mod wininet {
                     HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
                     (&mut status_code as *mut DWORD) as *mut winapi::ctypes::c_void,
                     &mut len as *mut DWORD,
-                    &mut index as *mut DWORD
+                    &mut index as *mut DWORD,
                 );
             };
             status_code
@@ -222,6 +230,9 @@ mod tests {
         let internet = wininet::Internet::open("agent", None).unwrap();
         let response = internet.get("http://example.com/", None).unwrap();
         assert_eq!(response.status(), 200);
-        assert!(response.as_bytes().map(|f| f as char).collect::<String>().find("<h1>Example Domain</h1>").is_some()) ;
+        assert!(String::from_utf8(response.body())
+            .unwrap()
+            .find("<h1>Example Domain</h1>")
+            .is_some());
     }
 }
